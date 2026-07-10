@@ -1,6 +1,10 @@
 __pycache__/
 *.pyc
 outputs/
+.idea/
+# Raw CKAN dump (14 MB, regenerable via src/fetch_ckan_dump.py --rows 1000)
+data/berlin_ckan_package_search.json
+*.log
 *.egg-info/
 .env
 .venv/

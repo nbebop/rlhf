@@ -17,7 +17,8 @@ def load_config(config_path: str | None = None) -> dict:
         cfg = yaml.safe_load(f)
 
     for key in ("sft_data_path", "preference_data_path", "ppo_prompts_path",
-                "sft_output_dir", "reward_output_dir", "ppo_output_dir"):
+                "sft_output_dir", "reward_output_dir", "ppo_output_dir",
+                "rm_eval_path", "gen_eval_path", "dpo_output_dir"):
         if key in cfg and not os.path.isabs(cfg[key]):
             cfg[key] = os.path.join(PROJECT_ROOT, cfg[key])
 

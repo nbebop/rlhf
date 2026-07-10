@@ -12,6 +12,7 @@ Run:
 """
 
 import argparse
+import os
 
 import torch
 from datasets import load_dataset
@@ -49,6 +50,13 @@ def main():
 
     dataset = dataset.map(format_pairs, remove_columns=["prompt"])
 
+    eval_path = cfg.get("rm_eval_path")
+    has_eval = bool(eval_path) and os.path.exists(eval_path)
+    eval_dataset = None
+    if has_eval:
+        eval_dataset = load_dataset("json", data_files=eval_path, split="train")
+        eval_dataset = eval_dataset.map(format_pairs, remove_columns=["prompt"])
+
     reward_cfg = cfg["reward"]
     training_args = RewardConfig(
         output_dir=cfg["reward_output_dir"],
@@ -60,12 +68,14 @@ def main():
         save_strategy="epoch",
         report_to="none",
         bf16=torch.cuda.is_available(),  # transformers defaults bf16=True, which fails validation on CPU-only machines
+        **({"eval_strategy": "epoch", "per_device_eval_batch_size": reward_cfg["per_device_train_batch_size"]} if has_eval else {}),
     )
 
     trainer = RewardTrainer(
         model=model,
         args=training_args,
         train_dataset=dataset,
+        eval_dataset=eval_dataset,
         processing_class=tokenizer,
         peft_config=build_lora_config(cfg),
     )
@@ -74,6 +84,11 @@ def main():
     trainer.save_model(cfg["reward_output_dir"])
     tokenizer.save_pretrained(cfg["reward_output_dir"])
     print(f"Reward model saved to {cfg['reward_output_dir']}")
+
+    if has_eval:
+        metrics = trainer.evaluate()
+        print(f"Eval metrics: {metrics}")
+        print(f"eval_accuracy: {metrics.get('eval_accuracy')}")
 
 
 if __name__ == "__main__":

@@ -1,9 +1,14 @@
-# Core RLHF stack
+# Core RLHF stack.
+# Verified 2026-07 against the versions a fresh install resolves to:
+# torch 2.13.0 / transformers 5.13.0 / trl 1.8.0 (CPU smoke test, all stages).
+# torch stays a floor so Colab keeps its preinstalled CUDA build.
 torch>=2.4
-transformers>=4.46
-trl>=0.29
-datasets>=3.0
-accelerate>=1.0
+transformers>=4.56.2
+# trl is pinned exactly: PPOTrainer lives under trl.experimental.ppo and is
+# officially subject to change between releases.
+trl==1.8.0
+datasets>=4.7
+accelerate>=1.4
 peft>=0.13
 
 # Optional (uncomment as needed)

@@ -1,0 +1,67 @@
+# Berlin CKAN metadata experiment config.
+#
+# Data is fetched by src/fetch_ckan_dump.py and converted by
+# src/prepare_ckan_data.py. The preference signal is synthetic: complete,
+# structured CKAN renderings are treated as "chosen"; deliberately degraded
+# renderings of the same package are treated as "rejected".
+
+# --- Model ---
+base_model: "Qwen/Qwen2.5-0.5B-Instruct"
+
+# --- Paths (outputs of each stage feed the next) ---
+sft_output_dir: "outputs/ckan_sft_model"
+reward_output_dir: "outputs/ckan_reward_model"
+ppo_output_dir: "outputs/ckan_ppo_model"
+dpo_output_dir: "outputs/ckan_dpo_model"
+
+# --- Data ---
+sft_data_path: "data/ckan_sft_data.jsonl"                 # {"prompt": ..., "response": ...}
+preference_data_path: "data/ckan_preference_data.jsonl"   # {"prompt": ..., "chosen": ..., "rejected": ...}
+ppo_prompts_path: "data/ckan_ppo_prompts.jsonl"           # {"prompt": ...}
+rm_eval_path: "data/ckan_rm_eval.jsonl"             # {"prompt": ..., "chosen": ..., "rejected": ...} held-out
+gen_eval_path: "data/ckan_gen_eval.jsonl"           # {"prompt": ...} held-out
+
+# --- SFT stage ---
+sft:
+  num_train_epochs: 3
+  per_device_train_batch_size: 4
+  gradient_accumulation_steps: 2
+  learning_rate: 2.0e-5
+  max_seq_length: 512
+
+# --- Reward model stage ---
+reward:
+  num_train_epochs: 3
+  per_device_train_batch_size: 4
+  learning_rate: 1.0e-5
+  max_length: 512
+
+# --- PPO stage ---
+ppo:
+  learning_rate: 3.0e-6
+  num_ppo_epochs: 4
+  per_device_train_batch_size: 4
+  mini_batch_size: 1
+  total_episodes: 5000
+  # Median clean CKAN record is ~280 tokens, p90 ~360; anything shorter caps
+  # the reward the policy can reach.
+  response_length: 384
+  kl_coef: 0.05
+  missing_eos_penalty: 1.0
+
+# --- DPO baseline (trained from the SFT checkpoint on the same preference pairs) ---
+dpo:
+  num_train_epochs: 2
+  per_device_train_batch_size: 2
+  gradient_accumulation_steps: 4
+  learning_rate: 5.0e-6
+  beta: 0.1
+  max_length: 512
+
+# --- LoRA (optional, recommended once you move to a bigger base_model) ---
+use_lora: false
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: ["q_proj", "v_proj"]
