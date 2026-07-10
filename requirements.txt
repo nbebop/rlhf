@@ -1,0 +1,12 @@
+# Core RLHF stack
+torch>=2.4
+transformers>=4.46
+trl>=0.29
+datasets>=3.0
+accelerate>=1.0
+peft>=0.13
+
+# Optional (uncomment as needed)
+# bitsandbytes>=0.44   # 8-bit/4-bit quantized training on GPU
+# wandb                # experiment tracking (set report_to="wandb" in configs)
+# deepspeed             # multi-GPU / ZeRO training

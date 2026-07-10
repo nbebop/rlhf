@@ -1,0 +1,56 @@
+# Geo-metadata experiment config -- sibling of config.yaml, not a replacement.
+# Data is fetched from NASA's CMR API by src/prepare_geo_data.py; see that
+# script for how "good" (chosen) vs "bad" (rejected) records are determined
+# (field completeness within each topic's real, fetched CMR records).
+
+# --- Model ---
+base_model: "EleutherAI/pythia-160m"
+
+# --- Paths (outputs of each stage feed the next) ---
+sft_output_dir: "outputs/geo_sft_model"
+reward_output_dir: "outputs/geo_reward_model"
+ppo_output_dir: "outputs/geo_ppo_model"
+
+# --- Data ---
+sft_data_path: "data/geo_sft_data.jsonl"          # {"prompt": ..., "response": ...}
+preference_data_path: "data/geo_preference_data.jsonl"  # {"prompt": ..., "chosen": ..., "rejected": ...}
+ppo_prompts_path: "data/geo_ppo_prompts.jsonl"    # {"prompt": ...}
+
+# --- SFT stage ---
+sft:
+  num_train_epochs: 3
+  per_device_train_batch_size: 4
+  gradient_accumulation_steps: 2
+  learning_rate: 2.0e-5
+  max_seq_length: 512
+
+# --- Reward model stage ---
+reward:
+  num_train_epochs: 3
+  per_device_train_batch_size: 4
+  learning_rate: 1.0e-5
+  max_length: 512
+
+# --- PPO stage ---
+ppo:
+  learning_rate: 3.0e-6
+  num_ppo_epochs: 4
+  per_device_train_batch_size: 4
+  mini_batch_size: 1
+  total_episodes: 200          # bump way up for a real run (e.g. 10_000+)
+  # Geo metadata records run ~150-300 tokens (see prepare_geo_data.py's
+  # ABSTRACT_CHAR_LIMIT) -- the default response_length: 64 used by the
+  # generic config would truncate every rollout well before a record's
+  # structured fields, making "completeness" unlearnable. 200 gives rollouts
+  # enough room to produce a genuinely complete record.
+  response_length: 200
+  kl_coef: 0.05
+  missing_eos_penalty: 1.0
+
+# --- LoRA (optional, recommended once you move to a bigger base_model) ---
+use_lora: false
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: ["q_proj", "v_proj"]   # adjust per model architecture
