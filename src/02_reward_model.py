@@ -14,12 +14,11 @@ Run:
 import argparse
 import os
 
-import torch
 from datasets import load_dataset
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from trl import RewardConfig, RewardTrainer
 
-from common import build_lora_config, load_config
+from common import build_lora_config, load_config, precision_kwargs
 
 
 def main():
@@ -67,7 +66,7 @@ def main():
         logging_steps=1,
         save_strategy="epoch",
         report_to="none",
-        bf16=torch.cuda.is_available(),  # transformers defaults bf16=True, which fails validation on CPU-only machines
+        **precision_kwargs(),
         **({"eval_strategy": "epoch", "per_device_eval_batch_size": reward_cfg["per_device_train_batch_size"]} if has_eval else {}),
     )
 

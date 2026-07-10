@@ -12,12 +12,11 @@ Run:
 
 import argparse
 
-import torch
 from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from trl import SFTConfig, SFTTrainer
 
-from common import build_lora_config, load_config
+from common import build_lora_config, load_config, precision_kwargs
 
 
 def main():
@@ -48,7 +47,7 @@ def main():
         logging_steps=1,
         save_strategy="epoch",
         report_to="none",
-        bf16=torch.cuda.is_available(),  # transformers defaults bf16=True, which fails validation on CPU-only machines
+        **precision_kwargs(),
     )
 
     trainer = SFTTrainer(

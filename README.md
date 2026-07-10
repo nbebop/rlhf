@@ -152,8 +152,9 @@ and prints mean reward per model plus side-by-side samples.
 For the CKAN workflow at scale:
 
 - **Recommended GPUs**: L4, A10G, or A100 (all support bfloat16). The free Colab
-  T4 has no bfloat16 support; the training scripts set `bf16=torch.cuda.is_available()`,
-  so on a T4 you must change that to `fp16=True` before running.
+  T4 has no bfloat16 support; the training scripts auto-detect this via
+  `common.precision_kwargs()` (`torch.cuda.is_bf16_supported()`) and fall back
+  to fp16 automatically, so no manual edits are needed on a T4.
 - **Memory**: With the 0.5B base model, full-parameter PPO fits on a single 24 GB
   GPU (PPO holds 4 models in memory: policy, reference, reward, value). For 1.5B+
   parameter models, set `use_lora: true` in `configs/ckan_config.yaml`.

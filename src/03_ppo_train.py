@@ -18,12 +18,11 @@ Run:
 
 import argparse
 
-import torch
 from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoModelForSequenceClassification, AutoTokenizer
 from trl.experimental.ppo import PPOConfig, PPOTrainer
 
-from common import build_lora_config, load_config
+from common import build_lora_config, load_config, precision_kwargs
 
 
 def main():
@@ -74,7 +73,7 @@ def main():
         missing_eos_penalty=ppo_cfg["missing_eos_penalty"],
         stop_token="eos",
         report_to="none",
-        bf16=torch.cuda.is_available(),  # transformers defaults bf16=True, which fails validation on CPU-only machines
+        **precision_kwargs(),
     )
 
     trainer = PPOTrainer(

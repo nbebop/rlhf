@@ -2,8 +2,25 @@
 
 import os
 import yaml
+import torch
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+
+def precision_kwargs() -> dict:
+    """Pick bf16 vs fp16 based on actual hardware support.
+
+    `bf16=torch.cuda.is_available()` is wrong on its own: T4 (free Colab)
+    has CUDA but no bf16 support, and requesting bf16 there produces
+    bf16 gradient tensors that crash inside GradScaler (which only
+    handles fp16) with "not implemented for 'BFloat16'". Checking
+    `torch.cuda.is_bf16_supported()` picks fp16 on T4 and bf16 on
+    L4/A10G/A100 automatically.
+    """
+    if not torch.cuda.is_available():
+        return {"bf16": False, "fp16": False}
+    bf16_ok = torch.cuda.is_bf16_supported()
+    return {"bf16": bf16_ok, "fp16": not bf16_ok}
 
 
 def load_config(config_path: str | None = None) -> dict:
