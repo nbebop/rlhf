@@ -26,12 +26,7 @@ BATCH_SIZE = 8
 REWARD_MAX_LENGTH = 512
 
 
-def generate_responses(ckpt_dir, prompts, max_new_tokens, device):
-    tokenizer = AutoTokenizer.from_pretrained(ckpt_dir)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.padding_side = "left"
-
+def generate_responses(ckpt_dir, tokenizer, prompts, max_new_tokens, device):
     model = AutoModelForCausalLM.from_pretrained(ckpt_dir)
     model.config.pad_token_id = tokenizer.pad_token_id
     model.to(device)
@@ -105,6 +100,15 @@ def main():
     if not available:
         raise SystemExit("No checkpoints available to evaluate. Run at least one training stage first.")
 
+    # PPO/DPO don't modify the tokenizer -- load it once from the SFT
+    # checkpoint (guaranteed to exist and be complete) instead of trusting
+    # each stage's own re-saved copy, which may be missing if that stage's
+    # training run was interrupted before its final save.
+    tokenizer = AutoTokenizer.from_pretrained(cfg["sft_output_dir"])
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = "left"
+
     reward_tokenizer = AutoTokenizer.from_pretrained(cfg["reward_output_dir"])
     if reward_tokenizer.pad_token is None:
         reward_tokenizer.pad_token = reward_tokenizer.eos_token
@@ -119,7 +123,7 @@ def main():
     responses_by_model = {}
     rewards_by_model = {}
     for name, ckpt_dir in available:
-        responses = generate_responses(ckpt_dir, prompts, max_new_tokens, device)
+        responses = generate_responses(ckpt_dir, tokenizer, prompts, max_new_tokens, device)
         rewards = score_responses(reward_model, reward_tokenizer, prompts, responses, device)
         responses_by_model[name] = responses
         rewards_by_model[name] = rewards
