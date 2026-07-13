@@ -19,7 +19,7 @@ from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from trl import DPOConfig, DPOTrainer
 
-from common import build_lora_config, load_config, precision_kwargs
+from common import build_lora_config, find_last_checkpoint, load_config, precision_kwargs
 
 
 def main():
@@ -66,7 +66,10 @@ def main():
         peft_config=build_lora_config(cfg),
     )
 
-    trainer.train()
+    last_checkpoint = find_last_checkpoint(cfg["dpo_output_dir"])
+    if last_checkpoint:
+        print(f"Resuming from checkpoint {last_checkpoint}")
+    trainer.train(resume_from_checkpoint=last_checkpoint)
     trainer.save_model(cfg["dpo_output_dir"])
     tokenizer.save_pretrained(cfg["dpo_output_dir"])
     print(f"DPO model saved to {cfg['dpo_output_dir']}")

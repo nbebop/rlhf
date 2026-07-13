@@ -3,8 +3,22 @@
 import os
 import yaml
 import torch
+from transformers.trainer_utils import get_last_checkpoint
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+
+def find_last_checkpoint(output_dir: str) -> str | None:
+    """Return the path to the latest `checkpoint-*` under output_dir, or None.
+
+    Lets a script resume after an interruption (e.g. a Colab disconnect)
+    instead of silently retraining from the base checkpoint. Only meaningful
+    for Trainer subclasses that support `resume_from_checkpoint` -- TRL's
+    experimental PPOTrainer does not, so 03_ppo_train.py can't use this.
+    """
+    if not os.path.isdir(output_dir):
+        return None
+    return get_last_checkpoint(output_dir)
 
 
 def precision_kwargs() -> dict:

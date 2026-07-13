@@ -86,6 +86,19 @@ python smoke_test.py --config ../configs/ckan_config.yaml
   practical default today. This repo trains it as a baseline alongside PPO
   so the two can be compared with `src/05_eval_compare.py`.
 
+## Resuming interrupted runs
+
+`01_sft.py`, `02_reward_model.py`, and `04_dpo_train.py` auto-resume: each
+checks its `output_dir` for an existing `checkpoint-*` (via
+`common.find_last_checkpoint`) and continues from it if one is found,
+otherwise it trains from scratch. Useful on a free-tier GPU (e.g. Colab)
+where the runtime can disconnect mid-run — just rerun the same command.
+
+`03_ppo_train.py` is the exception: TRL's experimental `PPOTrainer.train()`
+takes no `resume_from_checkpoint` argument and unconditionally resets its
+step counter, so an interrupted PPO run cannot be resumed — a rerun starts
+over from `sft_output_dir`. Budget for finishing PPO in one sitting.
+
 ## Berlin CKAN synthetic metadata experiment
 
 The repo also includes a small reproducible workflow for turning Berlin CKAN
@@ -165,6 +178,13 @@ For the CKAN workflow at scale:
   100% (hard negatives should cost a few points). PPO mean reward should rise
   monotonically with bounded KL divergence. Most importantly, `05_eval_compare.py`
   should show PPO and DPO mean reward clearly above SFT.
+- **Reward model epochs**: `reward.num_train_epochs` is 1, not 3. On the full
+  1200-pair CKAN preference set the reward model saturates (train accuracy 1.0,
+  loss ~1e-8) well before 1 epoch finishes, and `eval_accuracy` on the held-out
+  set matches at 1.0 too — extra epochs just add ~40 min of T4 time re-fitting
+  an already-solved objective. Watch the per-epoch `eval_accuracy` logs if you
+  change the data (e.g. harder negatives) and bump this back up only if it's
+  still improving.
 
 ## What was and wasn't verified here
 
@@ -187,5 +207,11 @@ For the CKAN workflow at scale:
   *drops* (not truncates) pairs longer than `max_length`, and URL-heavy
   records blew past 512 tokens — prompt+chosen now tokenizes at median ~310 /
   p90 ~390 tokens (Qwen tokenizer), so only a ~3% tail is filtered.
+- A real (non-tiny) run on a Colab T4 has been done for SFT and the reward
+  model against the full CKAN data: SFT converged cleanly (`train_loss` 0.48,
+  `mean_token_accuracy` 0.94), and the reward model hit `eval_accuracy: 1.0`
+  on the held-out set (`eval_loss` ~1.5e-7). `common.precision_kwargs()`
+  correctly picked fp16 on the T4 (no GradScaler crash).
 
-Not verified: a real (non-tiny) training run on GPU.
+Not yet verified on real (non-tiny) GPU hardware: PPO and DPO training, and
+`05_eval_compare.py`'s end-to-end comparison.

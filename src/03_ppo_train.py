@@ -12,6 +12,12 @@ TRL versions -- pin your `trl` version in requirements.txt for reproducibility,
 and re-check https://huggingface.co/docs/trl/main/en/ppo_trainer before
 upgrading.
 
+NOTE: unlike the other three stages, PPOTrainer.train() takes no
+resume_from_checkpoint argument and unconditionally resets its step counter,
+so an interrupted PPO run cannot be resumed -- a rerun starts over from
+sft_output_dir. Save often (ppo.total_episodes) and expect to redo this stage
+in one sitting on a free-tier GPU.
+
 Run:
     python src/03_ppo_train.py
 """

@@ -30,8 +30,13 @@ sft:
   max_seq_length: 512
 
 # --- Reward model stage ---
+# The chosen/rejected pairs are separable enough that accuracy hits 1.0 and
+# the loss bottoms out (~1e-8) well before 3 epochs finish -- extra epochs
+# just burn T4 time re-fitting an already-solved objective. Watch
+# eval_accuracy in the per-epoch eval logs; bump this back up only if it's
+# still improving at the end.
 reward:
-  num_train_epochs: 3
+  num_train_epochs: 1
   per_device_train_batch_size: 4
   learning_rate: 1.0e-5
   max_length: 512
