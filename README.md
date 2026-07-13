@@ -186,6 +186,34 @@ For the CKAN workflow at scale:
   change the data (e.g. harder negatives) and bump this back up only if it's
   still improving.
 
+## Troubleshooting
+
+- **`05_eval_compare.py` fails with `Couldn't instantiate the backend
+  tokenizer ... install sentencepiece or tiktoken`**: this looks like a
+  missing dependency but almost never is — Qwen's tokenizer is BPE-based and
+  needs `tokenizer.json`, not sentencepiece. It means whichever checkpoint
+  dir failed (check the traceback's `ckpt_dir`, or count `Loading weights`
+  events against `CANDIDATES = ("sft", "ppo", "dpo")` to see which one it
+  died on) is missing its tokenizer files entirely. `03_ppo_train.py` and
+  `04_dpo_train.py` only write the top-level tokenizer after
+  `trainer.train()` returns, so an interrupted run leaves only an
+  intermediate `checkpoint-*/` subfolder behind with no top-level tokenizer
+  (or model) files. `05_eval_compare.py` now sidesteps this by loading the
+  tokenizer once from `sft_output_dir` (PPO/DPO never modify it), but if the
+  *model* load for that checkpoint also fails afterwards (missing
+  `config.json`/weights), that confirms the run didn't finish — rerun it.
+- **`GradScaler ... not implemented for 'BFloat16'` crash on Colab**: means
+  `bf16=True` was forced somewhere instead of using
+  `common.precision_kwargs()`, which auto-detects via
+  `torch.cuda.is_bf16_supported()` (T4 → fp16, L4/A10G/A100 → bf16). All four
+  training scripts already use it; this only resurfaces if a config bypasses
+  it directly.
+- **A training stage looks stuck with a huge ETA**: check `configs/*.yaml`
+  batch size and dataset size against expected step count first — on a T4,
+  full fine-tuning without LoRA at ~4-6s/it for a 0.5B model is normal, not a
+  bug. See the reward-model epoch note above for a case where the fix was
+  epochs, not hardware.
+
 ## What was and wasn't verified here
 
 - All scripts compile cleanly (`python -m py_compile`).
@@ -213,5 +241,10 @@ For the CKAN workflow at scale:
   on the held-out set (`eval_loss` ~1.5e-7). `common.precision_kwargs()`
   correctly picked fp16 on the T4 (no GradScaler crash).
 
-Not yet verified on real (non-tiny) GPU hardware: PPO and DPO training, and
-`05_eval_compare.py`'s end-to-end comparison.
+- `05_eval_compare.py` hit a real bug on first GPU use: it reloaded a
+  separate tokenizer copy per checkpoint, which crashed on a checkpoint
+  whose training run hadn't reached its final save. Fixed by loading the
+  tokenizer once from `sft_output_dir` instead (see Troubleshooting above).
+
+Not yet verified on real (non-tiny) GPU hardware: PPO and DPO training
+completing end-to-end, and a full, successful `05_eval_compare.py` run.
