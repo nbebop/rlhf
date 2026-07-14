@@ -94,7 +94,14 @@ def main():
     )
 
     trainer.train()
-    trainer.save_model(cfg["ppo_output_dir"])
+
+    # trainer.save_model() saves only the LoRA adapter when peft is active,
+    # which 05_eval_compare.py can't load with AutoModelForCausalLM.from_pretrained.
+    # Merge it into the base weights so the checkpoint is a plain model either way.
+    policy = trainer.model.policy if hasattr(trainer.model, "policy") else trainer.model
+    if cfg.get("use_lora"):
+        policy = policy.merge_and_unload()
+    policy.save_pretrained(cfg["ppo_output_dir"])
     tokenizer.save_pretrained(cfg["ppo_output_dir"])
     print(f"PPO-tuned model saved to {cfg['ppo_output_dir']}")
 
